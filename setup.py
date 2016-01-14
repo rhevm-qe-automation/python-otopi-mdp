@@ -22,7 +22,7 @@ setup(
     platforms=['linux'],
     packages=['otopimdp'],
     long_description=read('README.md'),
-    install_requires=['otopi'],
+#    install_requires=['otopi'],  # It fails tests
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
