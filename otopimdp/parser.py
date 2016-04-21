@@ -25,13 +25,9 @@ Please refer to README.dialog.
 
 
 import re
-import gettext
-_ = lambda m: gettext.dgettext(message=m, domain='otopi')
-
-
+import six
 from otopi import base
 from otopi import util
-
 
 NOTE_EVENT = 'note'
 LOG_EVENT = 'log'
@@ -239,7 +235,7 @@ class MachineDialogParser(base.Base):
         type_ = event[TYPE_KEY]
         if type_ == QUERY_STRING_EVENT:
             reply = event[REPLY_KEY]
-            if not isinstance(reply, basestring) or '\n' in reply:
+            if not isinstance(reply, six.string_types) or '\n' in reply:
                 raise TypeError(
                     "QueryString.value must be single-line string, "
                     "got: %s" % reply
@@ -360,4 +356,3 @@ class MachineDialogParser(base.Base):
         abort command
         """
         self._write('abort')
-

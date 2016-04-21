@@ -18,11 +18,11 @@
 #
 
 
-from cStringIO import StringIO
-import unittest
-from otopimdp import parser as mdp
 import sys
 import logging
+import unittest
+import six
+from otopimdp import parser as mdp
 
 
 class MachineDialogParserTest(unittest.TestCase):
@@ -32,7 +32,7 @@ class MachineDialogParserTest(unittest.TestCase):
         logging.basicConfig(level=logging.DEBUG)
 
     def create_parser(self, data, output=sys.stdout):
-        input_ = StringIO()
+        input_ = six.StringIO()
         input_.write(data)
         input_.seek(0)
         parser = mdp.MachineDialogParser()
@@ -90,7 +90,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "***TERMINATE\n"
         )
         expected_output = ""
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
         event = parser.next_event()
         self._expect_terminate(event)
@@ -115,7 +115,7 @@ class MachineDialogParserTest(unittest.TestCase):
         expected_msg = "Some nice comment"
         data = "### %s\n" % expected_msg
         expected_output = ""
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
         event = parser.next_event()
         self._expect_note(event, expected_msg)
@@ -125,7 +125,7 @@ class MachineDialogParserTest(unittest.TestCase):
         expected_msg = "Some nice comment"
         data = "***L:INFO %s\n" % expected_msg
         expected_output = ""
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
         event = parser.next_event()
         self._expect_log(event, expected_msg, 'INFO')
@@ -185,7 +185,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "CONFIRM confirm2=yes\n"
         )
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
@@ -316,7 +316,7 @@ class MachineDialogParserTest(unittest.TestCase):
 
         expected_output = "log\n"
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
@@ -345,7 +345,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "env-get -k key2\n"
         )
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
@@ -381,7 +381,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "boundary1\n"
         )
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
@@ -405,12 +405,12 @@ class MachineDialogParserTest(unittest.TestCase):
 
         expected_output = "env-query -k key1\n"
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
         self._expect_qstring(event, 'prompt')
-        self.assertRaises(TypeError, parser.cli_env_set,"key1", self)
+        self.assertRaises(TypeError, parser.cli_env_set, "key1", self)
 
         self._compare_outputs(out, expected_output)
 
@@ -422,14 +422,14 @@ class MachineDialogParserTest(unittest.TestCase):
 
         expected_output = "env-query -k key1\n"
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
         self._expect_qstring(event, 'prompt')
         self.assertRaises(
             TypeError,
-            parser.cli_env_set,"key1",
+            parser.cli_env_set, "key1",
             "test\nwith new line"
         )
 
@@ -451,7 +451,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "noop\n"
         )
 
-        out = StringIO()
+        out = six.StringIO()
         parser = self.create_parser(data, out)
 
         event = parser.next_event()
