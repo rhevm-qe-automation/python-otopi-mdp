@@ -22,6 +22,7 @@ import sys
 import logging
 import unittest
 import six
+import pytest
 from otopimdp import parser as mdp
 
 
@@ -304,6 +305,75 @@ class MachineDialogParserTest(unittest.TestCase):
 
         self._compare_outputs(out, expected_output)
 
+    def test_return_character(self):
+        data = (
+            "#NOTE\r\n"
+            "#### NOTE\r\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        event = parser.next_event()
+        self._expect_note(event, "NOTE")
+        event = parser.next_event()
+        self._expect_note(event, "NOTE")
+
+    def test_unexpected_end(self):
+        data = ""
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        with pytest.raises(mdp.UnexpectedEOF):
+            parser.next_event()
+
+    def test_wrong_input(self):
+        data = (
+            "some wrong input data\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        # I am not sure whether it is good behav ...
+        assert parser.next_event() is None
+
+    def test_wrong_data_type(self):
+        data = (
+            "***D:VALUE value11=WRONG:True\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        with pytest.raises(TypeError):
+            parser.next_event()
+
+    def test_wrong_reply(self):
+        data = (
+            "***Q:STRING str1\n"
+            "#### NOTE\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        event = parser.next_event()
+        # NEW LINE IN RESPONSE
+        event[mdp.REPLY_KEY] = "multiline\nreply"
+        with pytest.raises(TypeError):
+            parser.send_response(event)
+
+        # NOT STRING
+        event[mdp.REPLY_KEY] = 1
+        with pytest.raises(TypeError):
+            parser.send_response(event)
+
+        event = parser.next_event()
+        # CAN NOT REPLY FOR NOTE
+        with pytest.raises(TypeError):
+            parser.send_response(event)
+
     def test_cli_log(self):
         data = (
             "***Q:STRING prompt\n" +
@@ -337,12 +407,14 @@ class MachineDialogParserTest(unittest.TestCase):
             "line 1\n"
             "line 2\n"
             "boundary1\n"
+            "***Q:STRING prompt\n"
             "***TERMINATE\n"
         )
 
         expected_output = (
             "env-get -k key1\n"
             "env-get -k key2\n"
+            "env-get -k something\n"
         )
 
         out = six.StringIO()
@@ -358,6 +430,9 @@ class MachineDialogParserTest(unittest.TestCase):
         value = parser.cli_env_get('key2')
         self.assertEqual(value, ['line 1', 'line 2'])
 
+        with pytest.raises(mdp.UnexpectedEventError):
+            parser.cli_env_get("something")
+
         event = parser.next_event()
         self._expect_terminate(event)
 
@@ -369,6 +444,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "***Q:VALUE key1\n"
             "***Q:STRING prompt\n"
             "***Q:MULTI-STRING key2 boundary1 boundary2\n"
+            "***D:VALUE key1=str:value1\n"
             "***TERMINATE\n"
         )
 
@@ -379,6 +455,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "line 1\n"
             "line 2\n"
             "boundary1\n"
+            "env-query -k something\n"
         )
 
         out = six.StringIO()
@@ -391,6 +468,9 @@ class MachineDialogParserTest(unittest.TestCase):
         event = parser.next_event()
         self._expect_qstring(event, "prompt")
         parser.cli_env_set('key2', ['line 1', 'line 2'])
+
+        with pytest.raises(mdp.UnexpectedEventError):
+            parser.cli_env_set("something", "else")
 
         event = parser.next_event()
         self._expect_terminate(event)
@@ -475,9 +555,21 @@ class MachineDialogParserTest(unittest.TestCase):
 
         self._compare_outputs(out, expected_output)
 
+    def test_wrong_log(self):
+        data = (
+            "***Q:VALUE value0\n"
+        )
 
-if __name__ == "__main__":
-    unittest.main()
+        expected_output = (
+            "log\n"
+        )
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        with pytest.raises(mdp.UnexpectedEventError):
+            parser.cli_download_log()
+
+        self._compare_outputs(out, expected_output)
 
 
 # vim: expandtab tabstop=4 shiftwidth=4
