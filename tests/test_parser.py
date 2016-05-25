@@ -23,7 +23,9 @@ import logging
 import unittest
 import six
 import pytest
-from otopimdp import parser as mdp
+from otopimdp.parser import MachineDialogParser
+from otopimdp import constants as c
+from otopimdp import errors as e
 
 
 class MachineDialogParserTest(unittest.TestCase):
@@ -36,7 +38,7 @@ class MachineDialogParserTest(unittest.TestCase):
         input_ = six.StringIO()
         input_.write(data)
         input_.seek(0)
-        parser = mdp.MachineDialogParser()
+        parser = MachineDialogParser()
         parser.set_streams(input_, output)
         return parser
 
@@ -45,46 +47,46 @@ class MachineDialogParserTest(unittest.TestCase):
         self.assertEqual(expected, out.read())
 
     def _expect_note(self, event, msg=None):
-        self.assertEqual(event[mdp.TYPE_KEY], mdp.NOTE_EVENT)
+        self.assertEqual(event[c.TYPE_KEY], c.NOTE_EVENT)
         if msg is not None:
-            self.assertEqual(event[mdp.ATTRIBUTES_KEY]['note'], msg)
+            self.assertEqual(event[c.ATTRIBUTES_KEY]['note'], msg)
 
     def _expect_log(self, event, msg=None, severity=None):
-        self.assertTrue(event[mdp.TYPE_KEY], mdp.LOG_EVENT)
+        self.assertTrue(event[c.TYPE_KEY], c.LOG_EVENT)
         if msg is not None:
-            self.assertEqual(event[mdp.ATTRIBUTES_KEY]['record'], msg)
+            self.assertEqual(event[c.ATTRIBUTES_KEY]['record'], msg)
         if severity is not None:
-            self.assertEqual(event[mdp.ATTRIBUTES_KEY]['severity'], severity)
+            self.assertEqual(event[c.ATTRIBUTES_KEY]['severity'], severity)
 
     def _expect_query(self, type_, event, name=None):
-        self.assertEqual(event[mdp.TYPE_KEY], type_)
+        self.assertEqual(event[c.TYPE_KEY], type_)
         if name is not None:
-            self.assertEqual(name, event[mdp.ATTRIBUTES_KEY]['name'])
+            self.assertEqual(name, event[c.ATTRIBUTES_KEY]['name'])
 
     def _expect_qstring(self, event, name=None):
-        self._expect_query(mdp.QUERY_STRING_EVENT, event, name)
+        self._expect_query(c.QUERY_STRING_EVENT, event, name)
 
     def _expect_qmstring(self, event, name=None):
-        self._expect_query(mdp.QUERY_MULTI_STRING_EVENT, event, name)
+        self._expect_query(c.QUERY_MULTI_STRING_EVENT, event, name)
 
     def _expect_qvalue(self, event, name=None):
-        self._expect_query(mdp.QUERY_VALUE_EVENT, event, name)
+        self._expect_query(c.QUERY_VALUE_EVENT, event, name)
 
     def _expect_dvalue(self, event, name=None):
-        self._expect_query(mdp.DISPLAY_VALUE_EVENT, event, name)
+        self._expect_query(c.DISPLAY_VALUE_EVENT, event, name)
 
     def _expect_dmstring(self, event, name=None):
-        self._expect_query(mdp.DISPLAY_MULTI_STRING_EVENT, event, name)
+        self._expect_query(c.DISPLAY_MULTI_STRING_EVENT, event, name)
 
     def _expect_confirm(self, event, what=None, dscr=None):
-        self.assertEqual(event[mdp.TYPE_KEY], mdp.CONFIRM_EVENT)
+        self.assertEqual(event[c.TYPE_KEY], c.CONFIRM_EVENT)
         if what is not None:
-            self.assertEqual(what, event[mdp.ATTRIBUTES_KEY]['what'])
+            self.assertEqual(what, event[c.ATTRIBUTES_KEY]['what'])
         if dscr is not None:
-            self.assertEqual(dscr, event[mdp.ATTRIBUTES_KEY]['description'])
+            self.assertEqual(dscr, event[c.ATTRIBUTES_KEY]['description'])
 
     def _expect_terminate(self, event):
-        self.assertEqual(event[mdp.TYPE_KEY], mdp.TERMINATE_EVENT)
+        self.assertEqual(event[c.TYPE_KEY], c.TERMINATE_EVENT)
 
     def test_basic(self):
         data = (
@@ -211,84 +213,84 @@ class MachineDialogParserTest(unittest.TestCase):
 
         event = parser.next_event()
         self._expect_qstring(event, 'str1')
-        event[mdp.REPLY_KEY] = "value 1"
+        event[c.REPLY_KEY] = "value 1"
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qmstring(event, 'mstr0')
-        event[mdp.ABORT_KEY] = True
+        event[c.ABORT_KEY] = True
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qmstring(event, 'mstr1')
-        event[mdp.REPLY_KEY] = ["line 1", 'line 2']
+        event[c.REPLY_KEY] = ["line 1", 'line 2']
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qmstring(event, 'mstr2')
-        event[mdp.REPLY_KEY] = []
+        event[c.REPLY_KEY] = []
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qvalue(event, 'value0')
-        event[mdp.ABORT_KEY] = True
+        event[c.ABORT_KEY] = True
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qvalue(event, 'value1')
-        event[mdp.REPLY_KEY] = None
+        event[c.REPLY_KEY] = None
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qvalue(event, 'value2')
-        event[mdp.REPLY_KEY] = True
+        event[c.REPLY_KEY] = True
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qvalue(event, 'value3')
-        event[mdp.REPLY_KEY] = False
+        event[c.REPLY_KEY] = False
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qvalue(event, 'value4')
-        event[mdp.REPLY_KEY] = 47
+        event[c.REPLY_KEY] = 47
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_qvalue(event, 'value5')
-        event[mdp.REPLY_KEY] = "string 1"
+        event[c.REPLY_KEY] = "string 1"
         parser.send_response(event)
 
         event = parser.next_event()
         self._expect_dvalue(event, 'value10')
-        self.assertEqual(None, event[mdp.ATTRIBUTES_KEY]['value'])
+        self.assertEqual(None, event[c.ATTRIBUTES_KEY]['value'])
 
         event = parser.next_event()
         self._expect_dvalue(event, 'value11')
-        self.assertEqual(True, event[mdp.ATTRIBUTES_KEY]['value'])
+        self.assertEqual(True, event[c.ATTRIBUTES_KEY]['value'])
 
         event = parser.next_event()
         self._expect_dvalue(event, 'value12')
-        self.assertEqual(False, event[mdp.ATTRIBUTES_KEY]['value'])
+        self.assertEqual(False, event[c.ATTRIBUTES_KEY]['value'])
 
         event = parser.next_event()
         self._expect_dvalue(event, 'value13')
-        self.assertEqual(52, event[mdp.ATTRIBUTES_KEY]['value'])
+        self.assertEqual(52, event[c.ATTRIBUTES_KEY]['value'])
 
         event = parser.next_event()
         self._expect_dvalue(event, 'value14')
-        self.assertEqual("value 2", event[mdp.ATTRIBUTES_KEY]['value'])
+        self.assertEqual("value 2", event[c.ATTRIBUTES_KEY]['value'])
 
         event = parser.next_event()
         self._expect_dmstring(event, 'mstr3')
         self.assertEqual(
             ['line 1', 'line 2'],
-            event[mdp.ATTRIBUTES_KEY]['value']
+            event[c.ATTRIBUTES_KEY]['value']
         )
 
         event = parser.next_event()
         self._expect_confirm(event, 'confirm0', 'description 0')
-        event[mdp.ABORT_KEY] = True
+        event[c.ABORT_KEY] = True
         parser.send_response(event)
 
         event = parser.next_event()
@@ -297,7 +299,7 @@ class MachineDialogParserTest(unittest.TestCase):
 
         event = parser.next_event()
         self._expect_confirm(event, 'confirm2', 'description 1')
-        event[mdp.REPLY_KEY] = True
+        event[c.REPLY_KEY] = True
         parser.send_response(event)
 
         event = parser.next_event()
@@ -324,7 +326,7 @@ class MachineDialogParserTest(unittest.TestCase):
         out = six.StringIO()
         parser = self.create_parser(data, out)
 
-        with pytest.raises(mdp.UnexpectedEOF):
+        with pytest.raises(e.UnexpectedEOF):
             parser.next_event()
 
     def test_wrong_input(self):
@@ -360,12 +362,12 @@ class MachineDialogParserTest(unittest.TestCase):
 
         event = parser.next_event()
         # NEW LINE IN RESPONSE
-        event[mdp.REPLY_KEY] = "multiline\nreply"
+        event[c.REPLY_KEY] = "multiline\nreply"
         with pytest.raises(TypeError):
             parser.send_response(event)
 
         # NOT STRING
-        event[mdp.REPLY_KEY] = 1
+        event[c.REPLY_KEY] = 1
         with pytest.raises(TypeError):
             parser.send_response(event)
 
@@ -430,7 +432,7 @@ class MachineDialogParserTest(unittest.TestCase):
         value = parser.cli_env_get('key2')
         self.assertEqual(value, ['line 1', 'line 2'])
 
-        with pytest.raises(mdp.UnexpectedEventError):
+        with pytest.raises(e.UnexpectedEventError):
             parser.cli_env_get("something")
 
         event = parser.next_event()
@@ -469,7 +471,7 @@ class MachineDialogParserTest(unittest.TestCase):
         self._expect_qstring(event, "prompt")
         parser.cli_env_set('key2', ['line 1', 'line 2'])
 
-        with pytest.raises(mdp.UnexpectedEventError):
+        with pytest.raises(e.UnexpectedEventError):
             parser.cli_env_set("something", "else")
 
         event = parser.next_event()
@@ -566,7 +568,7 @@ class MachineDialogParserTest(unittest.TestCase):
         out = six.StringIO()
         parser = self.create_parser(data, out)
 
-        with pytest.raises(mdp.UnexpectedEventError):
+        with pytest.raises(e.UnexpectedEventError):
             parser.cli_download_log()
 
         self._compare_outputs(out, expected_output)

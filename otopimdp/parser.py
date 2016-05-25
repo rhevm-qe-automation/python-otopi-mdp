@@ -24,101 +24,11 @@ Please refer to README.dialog.
 """
 
 
-import re
 import six
 from otopi import base
 from otopi import util
-
-NOTE_EVENT = 'note'
-LOG_EVENT = 'log'
-TERMINATE_EVENT = 'terminate'
-QUERY_STRING_EVENT = 'query_string'
-QUERY_MULTI_STRING_EVENT = 'query_multi_string'
-QUERY_VALUE_EVENT = 'query_value'
-CONFIRM_EVENT = 'confirm'
-DISPLAY_VALUE_EVENT = 'display_value'
-DISPLAY_MULTI_STRING_EVENT = 'display_multi_string'
-
-TYPE_KEY = 'type'
-REGEX_KEY = 'regex'
-ATTRIBUTES_KEY = 'attributes'
-REPLY_KEY = 'reply'
-ABORT_KEY = 'abort'
-
-TRANSLATION = (
-    {
-        TYPE_KEY: NOTE_EVENT,
-        REGEX_KEY: re.compile(r'^#+ *(?P<note>.*)$'),
-    },
-    {
-        TYPE_KEY: LOG_EVENT,
-        REGEX_KEY: re.compile(
-            r'^[*]{3}L:(?P<severity>[^ ]+) (?P<record>.*)$'
-        ),
-    },
-    {
-        TYPE_KEY: TERMINATE_EVENT,
-        REGEX_KEY: re.compile(r'^[*]{3}TERMINATE$'),
-    },
-    {
-        TYPE_KEY: QUERY_STRING_EVENT,
-        REGEX_KEY: re.compile(r'^[*]{3}Q:STRING (?P<name>.*)$'),
-    },
-    {
-        TYPE_KEY: QUERY_MULTI_STRING_EVENT,
-        REGEX_KEY: re.compile(
-            r'^[*]{3}Q:MULTI-STRING '
-            r'(?P<name>[^ ]+) '
-            r'(?P<boundary>[^ ]+) '
-            r'(?P<abort_boundary>.+)$'
-        ),
-    },
-    {
-        TYPE_KEY: QUERY_VALUE_EVENT,
-        REGEX_KEY: re.compile(r'^[*]{3}Q:VALUE (?P<name>.*)$'),
-    },
-    {
-        TYPE_KEY: CONFIRM_EVENT,
-        REGEX_KEY: re.compile(
-            r'^[*]{3}CONFIRM (?P<what>[^ ]+) (?P<description>.*)$'
-        ),
-    },
-    {
-        TYPE_KEY: DISPLAY_VALUE_EVENT,
-        REGEX_KEY: re.compile(
-            r'^[*]{3}D:VALUE '
-            r'(?P<name>[^=]+)='
-            r'(?P<type>[^:]+):'
-            r'(?P<value>.*)$'
-        ),
-    },
-    {
-        TYPE_KEY: DISPLAY_MULTI_STRING_EVENT,
-        REGEX_KEY: re.compile(
-            r'^[*]{3}D:MULTI-STRING (?P<name>[^ ]+) (?P<boundary>.*)$'
-        ),
-    },
-)
-
-
-class ParseError(Exception):
-    pass
-
-
-class UnexpectedEOF(ParseError):
-    pass
-
-
-class HeadDoesNotMatch(ParseError):
-    pass
-
-
-class DialogError(ParseError):
-    pass
-
-
-class UnexpectedEventError(DialogError):
-    pass
+from otopimdp import errors
+from otopimdp import constants as c
 
 
 @util.export
@@ -161,7 +71,7 @@ class MachineDialogParser(base.Base):
                 continue
             if not char:
                 if not line:
-                    raise UnexpectedEOF()
+                    raise errors.UnexpectedEOF()
                 return line
             if char == '\n':
                 return line
@@ -176,24 +86,26 @@ class MachineDialogParser(base.Base):
         Returns instance of Event
         """
         line = self.next_line()
-        for event_type in TRANSLATION:
-            match = event_type[REGEX_KEY].match(line)
+        for event_type in c.TRANSLATION:
+            match = event_type[c.REGEX_KEY].match(line)
             if not match:
                 continue
             event = dict(
                 (
-                    (TYPE_KEY, event_type[TYPE_KEY]),
-                    (ATTRIBUTES_KEY, match.groupdict()),
+                    (c.TYPE_KEY, event_type[c.TYPE_KEY]),
+                    (c.ATTRIBUTES_KEY, match.groupdict()),
                 )
             )
-            self._process_event(event_type[TYPE_KEY], event[ATTRIBUTES_KEY])
+            self._process_event(
+                event_type[c.TYPE_KEY], event[c.ATTRIBUTES_KEY],
+            )
             self.logger.debug("Next event: %s", event)
             return event
         # W/A for hosted-engine deploy job
         self.logger.warning("This line doesn't match no event: %s", line)
 
     def _process_event(self, event_type, attributes):
-        if event_type == DISPLAY_VALUE_EVENT:
+        if event_type == c.DISPLAY_VALUE_EVENT:
             type_ = attributes['type'].lower()
             if type_ == 'none':
                 attributes['value'] = None
@@ -206,12 +118,12 @@ class MachineDialogParser(base.Base):
             else:
                 raise TypeError(
                     "Unexpected type of %s.value: '%s'" % (
-                        DISPLAY_VALUE_EVENT,
+                        c.DISPLAY_VALUE_EVENT,
                         attributes['value']
                     )
                 )
 
-        if event_type == DISPLAY_MULTI_STRING_EVENT:
+        if event_type == c.DISPLAY_MULTI_STRING_EVENT:
             lines = []
             while True:
                 line = self.next_line()
@@ -232,47 +144,47 @@ class MachineDialogParser(base.Base):
 
     @staticmethod
     def _send_response(event):
-        type_ = event[TYPE_KEY]
-        if type_ == QUERY_STRING_EVENT:
-            reply = event[REPLY_KEY]
+        type_ = event[c.TYPE_KEY]
+        if type_ == c.QUERY_STRING_EVENT:
+            reply = event[c.REPLY_KEY]
             if not isinstance(reply, six.string_types) or '\n' in reply:
                 raise TypeError(
                     "QueryString.value must be single-line string, "
                     "got: %s" % reply
                 )
             return reply
-        elif type_ == QUERY_MULTI_STRING_EVENT:
-            if event.get(ABORT_KEY, False):
-                return event[ATTRIBUTES_KEY]['abort_boundary']
-            lines = '\n'.join(event.get(REPLY_KEY, list()))
+        elif type_ == c.QUERY_MULTI_STRING_EVENT:
+            if event.get(c.ABORT_KEY, False):
+                return event[c.ATTRIBUTES_KEY]['abort_boundary']
+            lines = '\n'.join(event.get(c.REPLY_KEY, list()))
             if lines:
-                return "%s\n%s" % (lines, event[ATTRIBUTES_KEY]['boundary'])
-            return event[ATTRIBUTES_KEY]['boundary']
-        elif type_ == QUERY_VALUE_EVENT:
-            if event.get(ABORT_KEY, False):
-                return "ABORT %s" % event[ATTRIBUTES_KEY]['name']
-            reply = event[REPLY_KEY]
+                return "%s\n%s" % (lines, event[c.ATTRIBUTES_KEY]['boundary'])
+            return event[c.ATTRIBUTES_KEY]['boundary']
+        elif type_ == c.QUERY_VALUE_EVENT:
+            if event.get(c.ABORT_KEY, False):
+                return "ABORT %s" % event[c.ATTRIBUTES_KEY]['name']
+            reply = event[c.REPLY_KEY]
             value_type = type(reply).__name__
             if value_type == 'NoneType':
                 value_type = 'none'
             if value_type == 'str' and '\n' in reply:
                 raise TypeError(
                     ("String '%s' should not contain new lines" %
-                        event[ATTRIBUTES_KEY]['name']
+                        event[c.ATTRIBUTES_KEY]['name']
                      )
                 )
             if value_type not in ('none', 'str', 'bool', 'int'):
                 raise TypeError("Invalid type of value: %s" % value_type)
             return "VALUE %s=%s:%s" % (
-                event[ATTRIBUTES_KEY]['name'],
+                event[c.ATTRIBUTES_KEY]['name'],
                 value_type,
                 reply
             )
-        elif type_ == CONFIRM_EVENT:
-            if event.get(ABORT_KEY, False):
-                return "ABORT %s" % event[ATTRIBUTES_KEY]['what']
-            reply = "yes" if event.get(REPLY_KEY, False) else "no"
-            return "CONFIRM %s=%s" % (event[ATTRIBUTES_KEY]['what'], reply)
+        elif type_ == c.CONFIRM_EVENT:
+            if event.get(c.ABORT_KEY, False):
+                return "ABORT %s" % event[c.ATTRIBUTES_KEY]['what']
+            reply = "yes" if event.get(c.REPLY_KEY, False) else "no"
+            return "CONFIRM %s=%s" % (event[c.ATTRIBUTES_KEY]['what'], reply)
         else:
             raise TypeError("%s is not replayable" % type_)
 
@@ -291,12 +203,12 @@ class MachineDialogParser(base.Base):
         self._write(cmd)
 
         event = self.next_event()
-        if event[TYPE_KEY] not in (
-            DISPLAY_VALUE_EVENT,
-            DISPLAY_MULTI_STRING_EVENT,
+        if event[c.TYPE_KEY] not in (
+            c.DISPLAY_VALUE_EVENT,
+            c.DISPLAY_MULTI_STRING_EVENT,
         ):
-            raise UnexpectedEventError(event)
-        return event[ATTRIBUTES_KEY]['value']
+            raise errors.UnexpectedEventError(event)
+        return event[c.ATTRIBUTES_KEY]['value']
 
     def cli_env_set(self, key, value):
         """
@@ -314,13 +226,13 @@ class MachineDialogParser(base.Base):
         self._write(cmd)
 
         event = self.next_event()
-        if event[TYPE_KEY] not in (
-            QUERY_STRING_EVENT,
-            QUERY_MULTI_STRING_EVENT,
-            QUERY_VALUE_EVENT,
+        if event[c.TYPE_KEY] not in (
+            c.QUERY_STRING_EVENT,
+            c.QUERY_MULTI_STRING_EVENT,
+            c.QUERY_VALUE_EVENT,
         ):
-            raise UnexpectedEventError(event)
-        event[REPLY_KEY] = value
+            raise errors.UnexpectedEventError(event)
+        event[c.REPLY_KEY] = value
         self.send_response(event)
 
     def cli_download_log(self):
@@ -329,9 +241,9 @@ class MachineDialogParser(base.Base):
         """
         self._write('log')
         event = self.next_event()
-        if event[TYPE_KEY] == DISPLAY_MULTI_STRING_EVENT:
-            return '\n'.join(event[ATTRIBUTES_KEY]['value']) + '\n'
-        raise UnexpectedEventError(event)
+        if event[c.TYPE_KEY] == c. DISPLAY_MULTI_STRING_EVENT:
+            return '\n'.join(event[c.ATTRIBUTES_KEY]['value']) + '\n'
+        raise errors.UnexpectedEventError(event)
 
     def cli_noop(self):
         """

@@ -1,12 +1,12 @@
 from otopimdp.parser import MachineDialogParser
-from otopimdp.parser import (
+from otopimdp.constants import (
     ABORT_KEY,
     ATTRIBUTES_KEY,
     REGEX_KEY,
     TYPE_KEY,
     REPLY_KEY,
 )
-from otopimdp.parser import (
+from otopimdp.constants import (
     CONFIRM_EVENT,
     DISPLAY_MULTI_STRING_EVENT,
     DISPLAY_VALUE_EVENT,
