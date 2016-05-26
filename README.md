@@ -1,4 +1,6 @@
 [![Build Status][travisimg]][travis]
+[![Code Coverage][codecovimg]][codecov]
+[![Code Health][codehealthimg]][codehealth]
 
 # python-otopi-mdp
 
@@ -60,3 +62,7 @@ while True:
 [githubissues]: https://github.com/rhevm-qe-automation/python-otopi-mdp/issues
 [travisimg]: https://travis-ci.org/rhevm-qe-automation/python-otopi-mdp.svg?branch=master
 [travis]: https://travis-ci.org/rhevm-qe-automation/python-otopi-mdp
+[codecovimg]: https://codecov.io/gh/rhevm-qe-automation/python-otopi-mdp/branch/master/graph/badge.svg
+[codecov]: https://codecov.io/gh/rhevm-qe-automation/python-otopi-mdp
+[codehealthimg]: https://landscape.io/github/rhevm-qe-automation/python-otopi-mdp/master/landscape.svg?style=flat
+[codehealth]: https://landscape.io/github/rhevm-qe-automation/python-otopi-mdp/master
