@@ -30,6 +30,10 @@ class UnexpectedEOF(ParseError):
     pass
 
 
+class UnexpectedInputError(ParseError):
+    pass
+
+
 class HeadDoesNotMatch(ParseError):
     pass
 
@@ -39,4 +43,8 @@ class DialogError(ParseError):
 
 
 class UnexpectedEventError(DialogError):
+    pass
+
+
+class IncompleteQueryFrameError(ParseError):
     pass

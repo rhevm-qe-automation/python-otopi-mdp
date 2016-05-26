@@ -167,6 +167,12 @@ class MachineDialogParserTest(unittest.TestCase):
             "***CONFIRM confirm0 description 0\n"
             "***CONFIRM confirm1 description 1\n"
             "***CONFIRM confirm2 description 1\n"
+            "**%QStart: MyFrame\n"
+            "**%QHidden: FALSE\n"
+            "***Q:VALUE value20\n"
+            "**%QDefault: one\n"
+            "**%QValidValues: one|two|three\n"
+            "**%QEnd: MyFrame\n"
             "***TERMINATE\n"
         )
 
@@ -186,6 +192,7 @@ class MachineDialogParserTest(unittest.TestCase):
             "ABORT confirm0\n"
             "CONFIRM confirm1=no\n"
             "CONFIRM confirm2=yes\n"
+            "VALUE value20=str:two\n"
         )
 
         out = six.StringIO()
@@ -303,9 +310,99 @@ class MachineDialogParserTest(unittest.TestCase):
         parser.send_response(event)
 
         event = parser.next_event()
+        self._expect_qvalue(event, 'value20')
+        assert event[c.ATTRIBUTES_KEY][c.FRAME_NAME_KEY] == 'MyFrame'
+        assert not event[c.ATTRIBUTES_KEY][c.HIDDEN_KEY]
+        assert event[c.ATTRIBUTES_KEY][c.DEFAULT_KEY] == 'one'
+        assert event[c.ATTRIBUTES_KEY][c.VALID_VALUES_KEY] == [
+            'one', 'two', 'three',
+        ]
+        event[c.REPLY_KEY] = "two"
+        parser.send_response(event)
+
+        event = parser.next_event()
         self._expect_terminate(event)
 
         self._compare_outputs(out, expected_output)
+
+    def test_empty_qframe(self):
+        data = (
+            "**%QStart: MyFrame\n"
+            "**%QHidden: FALSE\n"
+            "**%QDefault: one\n"
+            "**%QValidValues: one|two|three\n"
+            "**%QEnd: MyFrame\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        with pytest.raises(e.IncompleteQueryFrameError):
+            parser.next_event()
+
+    def test_unpaired_name_of_qframe(self):
+        data = (
+            "**%QStart: MyFrame\n"
+            "**%QHidden: FALSE\n"
+            "***Q:VALUE value1\n"
+            "**%QDefault: one\n"
+            "**%QValidValues: one|two|three\n"
+            "**%QEnd: MyFrame2\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        event = parser.next_event()
+        assert event[c.ATTRIBUTES_KEY][c.FRAME_NAME_KEY] == "MyFrame"
+
+    def test_invalid_hiden_attribute_in_qframe(self):
+        data = (
+            "**%QStart: MyFrame\n"
+            "**%QHidden: something\n"
+            "***Q:VALUE value1\n"
+            "**%QDefault: one\n"
+            "**%QValidValues: one|two|three\n"
+            "**%QEnd: MyFrame\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        event = parser.next_event()
+        assert not event[c.ATTRIBUTES_KEY][c.HIDDEN_KEY]
+
+    def test_true_hiden_attribute_in_qframe(self):
+        data = (
+            "**%QStart: MyFrame\n"
+            "**%QHidden: TRUE\n"
+            "***Q:VALUE value1\n"
+            "**%QDefault: one\n"
+            "**%QValidValues: one|two|three\n"
+            "**%QEnd: MyFrame\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        event = parser.next_event()
+        assert event[c.ATTRIBUTES_KEY][c.HIDDEN_KEY]
+
+    def test_wrong_framed_event(self):
+        data = (
+            "**%QStart: MyFrame\n"
+            "**%QHidden: TRUE\n"
+            "something wrong\n"
+            "**%QDefault: one\n"
+            "**%QValidValues: one|two|three\n"
+            "**%QEnd: MyFrame\n"
+        )
+
+        out = six.StringIO()
+        parser = self.create_parser(data, out)
+
+        with pytest.raises(e.UnexpectedInputError):
+            parser.next_event()
 
     def test_return_character(self):
         data = (

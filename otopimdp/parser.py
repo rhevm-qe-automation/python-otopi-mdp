@@ -29,6 +29,7 @@ from otopi import base
 from otopi import util
 from otopimdp import errors
 from otopimdp import constants as c
+from otopimdp import utils
 
 
 @util.export
@@ -85,7 +86,11 @@ class MachineDialogParser(base.Base):
         """
         Returns instance of Event
         """
-        line = self.next_line()
+        return self._next_event()
+
+    def _next_event(self, line=None):
+        if not line:
+            line = self.next_line()
         for event_type in c.TRANSLATION:
             match = event_type[c.REGEX_KEY].match(line)
             if not match:
@@ -96,15 +101,16 @@ class MachineDialogParser(base.Base):
                     (c.ATTRIBUTES_KEY, match.groupdict()),
                 )
             )
-            self._process_event(
-                event_type[c.TYPE_KEY], event[c.ATTRIBUTES_KEY],
-            )
+            self._process_event(event)
             self.logger.debug("Next event: %s", event)
             return event
         # W/A for hosted-engine deploy job
         self.logger.warning("This line doesn't match no event: %s", line)
 
-    def _process_event(self, event_type, attributes):
+    def _process_event(self, event):
+        event_type = event[c.TYPE_KEY]
+        attributes = event[c.ATTRIBUTES_KEY]
+
         if event_type == c.DISPLAY_VALUE_EVENT:
             type_ = attributes['type'].lower()
             if type_ == 'none':
@@ -132,6 +138,66 @@ class MachineDialogParser(base.Base):
                 else:
                     break
             attributes['value'] = lines
+
+        if event_type == c.QUERY_FRAME_EVENT:
+            self._process_frame_event(event)
+
+    def _process_frame_event(self, event):
+        attributes = event[c.ATTRIBUTES_KEY]
+        framed_event = None
+        while True:
+            line = self.next_line()
+            m = c.QUERY_FRAME_PATTERNS[c.QUERY_FRAME_PART_END].match(line)
+            if m:
+                if m.group(c.FRAME_NAME_KEY) != attributes[c.FRAME_NAME_KEY]:
+                    self.logger.warning(
+                        "The QStart:NAME != QEnd:NAME (%s != %s)",
+                        m.group(c.FRAME_NAME_KEY),
+                        attributes[c.FRAME_NAME_KEY],
+                    )
+                break
+            m = c.QUERY_FRAME_PATTERNS[c.QUERY_FRAME_PART_DEFAULT].match(line)
+            if m:
+                attributes[c.DEFAULT_KEY] = m.group(c.DEFAULT_KEY)
+                continue
+            m = c.QUERY_FRAME_PATTERNS[c.QUERY_FRAME_PART_HIDDEN].match(line)
+            if m:
+                if m.group(c.HIDDEN_KEY) == "TRUE":
+                    attributes[c.HIDDEN_KEY] = True
+                elif m.group(c.HIDDEN_KEY) == "FALSE":
+                    attributes[c.HIDDEN_KEY] = False
+                else:
+                    self.logger.warning(
+                        "The QHidden(%s) has invalid option: "
+                        "%s not in (TRUE, FALSE)",
+                        attributes[c.FRAME_NAME_KEY],
+                        m.group(c.HIDDEN_KEY),
+                    )
+                    attributes[c.HIDDEN_KEY] = False
+                continue
+            m = c.QUERY_FRAME_PATTERNS[
+                c.QUERY_FRAME_PART_VALID_VALUES
+            ].match(line)
+            if m:
+                attributes[c.VALID_VALUES_KEY] = utils.split_valid_options(
+                    m.group('valid')
+                )
+                continue
+
+            framed_event = self._next_event(line)
+            if framed_event is None:
+                raise errors.UnexpectedInputError(
+                    c.QUERY_FRAME_EVENT, attributes, line,
+                )
+
+            event[c.ATTRIBUTES_KEY].update(framed_event[c.ATTRIBUTES_KEY])
+            event[c.TYPE_KEY] = framed_event[c.TYPE_KEY]
+
+        if framed_event is None:
+            raise errors.IncompleteQueryFrameError(
+                "The frame %s doesn't contain query.",
+                event,
+            )
 
     def send_response(self, event):
         """
@@ -241,7 +307,7 @@ class MachineDialogParser(base.Base):
         """
         self._write('log')
         event = self.next_event()
-        if event[c.TYPE_KEY] == c. DISPLAY_MULTI_STRING_EVENT:
+        if event[c.TYPE_KEY] == c.DISPLAY_MULTI_STRING_EVENT:
             return '\n'.join(event[c.ATTRIBUTES_KEY]['value']) + '\n'
         raise errors.UnexpectedEventError(event)
 

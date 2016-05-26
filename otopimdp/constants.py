@@ -31,6 +31,7 @@ LOG_EVENT = 'log'
 TERMINATE_EVENT = 'terminate'
 QUERY_STRING_EVENT = 'query_string'
 QUERY_MULTI_STRING_EVENT = 'query_multi_string'
+QUERY_FRAME_EVENT = 'query_frame'
 QUERY_VALUE_EVENT = 'query_value'
 CONFIRM_EVENT = 'confirm'
 DISPLAY_VALUE_EVENT = 'display_value'
@@ -41,6 +42,29 @@ REGEX_KEY = 'regex'
 ATTRIBUTES_KEY = 'attributes'
 REPLY_KEY = 'reply'
 ABORT_KEY = 'abort'
+DEFAULT_KEY = 'default'
+HIDDEN_KEY = 'hidden'
+VALID_VALUES_KEY = 'valid_values'
+FRAME_NAME_KEY = 'frame_name'
+
+QUERY_FRAME_PART_START = 'qfstart'
+QUERY_FRAME_PART_END = 'qfend'
+QUERY_FRAME_PART_DEFAULT = 'qfdefault'
+QUERY_FRAME_PART_HIDDEN = 'qfhidden'
+QUERY_FRAME_PART_VALID_VALUES = 'qfvalidvalues'
+
+QUERY_FRAME_PATTERNS = {
+    QUERY_FRAME_PART_START: re.compile(r'^[*]{2}%QStart: (?P<frame_name>.*)$'),
+    QUERY_FRAME_PART_END: re.compile(r'^[*]{2}%QEnd: (?P<frame_name>.*)$'),
+    QUERY_FRAME_PART_DEFAULT: re.compile(
+        r'^[*]{2}%QDefault: (?P<default>.*)$'
+    ),
+    QUERY_FRAME_PART_HIDDEN: re.compile(r'^[*]{2}%QHidden: (?P<hidden>.*)$'),
+    QUERY_FRAME_PART_VALID_VALUES: re.compile(
+        r'^[*]{2}%QValidValues: (?P<valid>.*)$'
+    ),
+}
+
 
 TRANSLATION = (
     {
@@ -56,6 +80,10 @@ TRANSLATION = (
     {
         TYPE_KEY: TERMINATE_EVENT,
         REGEX_KEY: re.compile(r'^[*]{3}TERMINATE$'),
+    },
+    {
+        TYPE_KEY: QUERY_FRAME_EVENT,
+        REGEX_KEY: QUERY_FRAME_PATTERNS[QUERY_FRAME_PART_START],
     },
     {
         TYPE_KEY: QUERY_STRING_EVENT,

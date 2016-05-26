@@ -1,10 +1,23 @@
 from otopimdp.parser import MachineDialogParser
+from otopimdp.errors import (
+    ParseError,
+    UnexpectedEOF,
+    UnexpectedInputError,
+    HeadDoesNotMatch,
+    DialogError,
+    UnexpectedEventError,
+    IncompleteQueryFrameError,
+)
 from otopimdp.constants import (
     ABORT_KEY,
     ATTRIBUTES_KEY,
     REGEX_KEY,
     TYPE_KEY,
     REPLY_KEY,
+    DEFAULT_KEY,
+    HIDDEN_KEY,
+    VALID_VALUES_KEY,
+    FRAME_NAME_KEY,
 )
 from otopimdp.constants import (
     CONFIRM_EVENT,
@@ -21,11 +34,22 @@ from otopimdp.constants import (
 
 __all__ = [
     'MachineDialogParser',
+    'ParseError',
+    'UnexpectedEOF',
+    'UnexpectedInputError',
+    'HeadDoesNotMatch',
+    'DialogError',
+    'UnexpectedEventError',
+    'IncompleteQueryFrameError',
     'ABORT_KEY',
     'ATTRIBUTES_KEY',
     'REGEX_KEY',
     'TYPE_KEY',
     'REPLY_KEY',
+    'HIDDEN_KEY',
+    'DEFAULT_KEY',
+    'VALID_VALUES_KEY',
+    'FRAME_NAME_KEY',
     'CONFIRM_EVENT',
     'DISPLAY_MULTI_STRING_EVENT',
     'DISPLAY_VALUE_EVENT',
