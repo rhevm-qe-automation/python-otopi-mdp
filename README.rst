@@ -25,14 +25,15 @@ they ship this module for several package managements.
 Usage
 =====
 
-#. Set otopi environment to enable machine dialect
+1. Set otopi environment to enable machine dialect
 
-  .. code::
+.. code::
 
-    DIALOG/dialect=str:machine
+  DIALOG/dialect=str:machine
 
-#. Spawn desired installer and pass stdin and stdout to parser
-#. Process all otopi events in the loop
+2. Spawn desired installer and pass stdin and stdout to parser
+
+3. Process all otopi events in the loop
 
 Example for oVirt Hosted Engine
 -------------------------------
